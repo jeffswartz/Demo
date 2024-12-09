@@ -20,19 +20,27 @@ class ReactWebViewManager(context: ReactApplicationContext) : SimpleViewManager<
 
   override fun createViewInstance(context: ThemedReactContext): ReactWebView = ReactWebView(context)
 
-  @ReactProp(name = "sourceUrl")
-  override fun setSourceURL(view: ReactWebView, sourceURL: String?) {
-    if (sourceURL == null) {
-      view.emitOnScriptLoaded(ReactWebView.OnScriptLoadedEventResult.error)
-      return;
-    }
-    view.loadUrl(sourceURL, emptyMap())
+  @ReactProp(name = "apiKey")
+  override public fun setApiKey(view: ReactWebView, apiKey: String?) {
+    view.setApiKey(apiKey)
   }
+
+  @ReactProp(name = "sessionId")
+  override public fun setSessionId(view: ReactWebView, sessionId: String?) {
+    view.setSessionId(sessionId)
+  }
+
+  @ReactProp(name = "token")
+  override public fun setToken(view: ReactWebView, token: String?) {
+    view.setToken(token)
+  }
+
 
   companion object {
     const val REACT_CLASS = "CustomWebView"
   }
 
+  /*
   override fun getExportedCustomBubblingEventTypeConstants(): Map<String, Any> =
       mapOf(
           "onScriptLoaded" to
@@ -42,4 +50,5 @@ class ReactWebViewManager(context: ReactApplicationContext) : SimpleViewManager<
                           "bubbled" to "onScriptLoaded",
                           "captured" to "onScriptLoadedCapture"
                       )))
+  */
 }
