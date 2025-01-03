@@ -40,15 +40,13 @@ class ReactWebViewManager(context: ReactApplicationContext) : SimpleViewManager<
     const val REACT_CLASS = "CustomWebView"
   }
 
-  /*
   override fun getExportedCustomBubblingEventTypeConstants(): Map<String, Any> =
       mapOf(
-          "onScriptLoaded" to
+          "onStreamCreated" to
               mapOf(
                   "phasedRegistrationNames" to
                       mapOf(
-                          "bubbled" to "onScriptLoaded",
-                          "captured" to "onScriptLoadedCapture"
+                          "bubbled" to "onStreamCreated",
+                          "captured" to "onStreamCreatedCapture"
                       )))
-  */
 }

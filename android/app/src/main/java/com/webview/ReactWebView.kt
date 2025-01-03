@@ -18,12 +18,14 @@ import com.opentok.android.Session
 import com.opentok.android.Session.SessionListener
 import com.opentok.android.Stream
 import com.opentok.android.Subscriber
+import com.opentok.android.SubscriberKit
+import com.opentok.android.SubscriberKit.SubscriberListener
 
-class ReactWebView: FrameLayout, SessionListener, PublisherListener {
+class ReactWebView: FrameLayout, SessionListener, PublisherListener, SubscriberListener {
   private lateinit var session: Session
-  private var apiKey: String? = "472032"
-  private var sessionId: String?= "1_MX40NzIwMzJ-fjE3MzM0NTAzOTcyNjh-L0FQMkR0K2tVc214ajJOVzZiYWtYclg1fn5-"
-  private var token: String?= "T1==cGFydG5lcl9pZD00NzIwMzImc2lnPTNlNDZmMmY1YzQ2ZDliNzJiZWE1NzQ3MTkyNmI0MThhYTMxMjcyNjA6c2Vzc2lvbl9pZD0xX01YNDBOekl3TXpKLWZqRTNNek0wTlRBek9UY3lOamgtTDBGUU1rUjBLMnRWYzIxNGFqSk9WelppWVd0WWNsZzFmbjUtJmNyZWF0ZV90aW1lPTE3MzM0NTA0MjYmbm9uY2U9MC43Njc3ODY4NjU5MjM4NjM4JnJvbGU9bW9kZXJhdG9yJmV4cGlyZV90aW1lPTE3MzYwNDI0MjU0NDYmaW5pdGlhbF9sYXlvdXRfY2xhc3NfbGlzdD0="
+  private var apiKey: String? = ""
+  private var sessionId: String?= ""
+  private var token: String?= ""
   private var subscriber: Subscriber? = null
 
   constructor(context: Context) : super(context) {
@@ -38,20 +40,34 @@ class ReactWebView: FrameLayout, SessionListener, PublisherListener {
     configureComponent(context)
   }
 
-  private fun configureComponent(context: Context) {
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
     connectToSession()
+  }
+
+  private fun configureComponent(context: Context) {
     var params = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)  
     this.setLayoutParams(params)
+    // this.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+  }
+
+  fun emitOnStreamCreated(streamId: String) {
+    val reactContext = context as ReactContext
+    val surfaceId = UIManagerHelper.getSurfaceId(reactContext)
+    val eventDispatcher = UIManagerHelper.getEventDispatcherForReactTag(reactContext, id)
+    val payload =
+        Arguments.createMap().apply {
+          putString("streamId", streamId)
+        }
+    val event = OnStreamCreatedEvent(surfaceId, id, payload)
+
+    eventDispatcher?.dispatchEvent(event)
   }
 
   private fun connectToSession() {
     session = Session.Builder(context, apiKey, sessionId).build()
     session.setSessionListener(this)
     session.connect(token)
-  }
-
-  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-    this.setMeasuredDimension(400, 400)
   }
 
   private fun publish(session: Session) {
@@ -85,19 +101,29 @@ class ReactWebView: FrameLayout, SessionListener, PublisherListener {
 
   override fun onStreamReceived(session: Session, stream: Stream) {
           session.sendSignal("onStreamReceived", "New Stream Received ${stream.streamId} in session: ${session.sessionId}")
+          emitOnStreamCreated(stream.streamId)
           subscriber = Subscriber.Builder(context, stream).build()
-          subscriber?.renderer?.setStyle(
+          subscriber?.setStyle(
               BaseVideoRenderer.STYLE_VIDEO_SCALE,
               BaseVideoRenderer.STYLE_VIDEO_FILL
           )
-          // this.setSubscriberListener(subscriberListener)
+          subscriber?.setSubscriberListener(this)
+          // FrameLayout mubscriberViewContainer = FrameLayout(context);
 
           session.subscribe(subscriber)
           if (subscriber?.view != null) {
-            subscriber?.view?.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            subscriber?.view?.layoutParams = LayoutParams(1000, 1000)
             this.addView(subscriber?.view)
             session.sendSignal("addView", "subscriber?.view")
             requestLayout()
+            val subscriberView = subscriber?.view
+            if (subscriberView != null) {
+              subscriberView.measure(
+                View.MeasureSpec.makeMeasureSpec(subscriberView.getMeasuredWidth(), View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(subscriberView.getMeasuredHeight(), View.MeasureSpec.EXACTLY));
+              subscriberView.layout(subscriberView.getLeft(), subscriberView.getTop(), 640, 480)
+              // subscriberView.layout(subscriberView.getLeft(), subscriberView.getTop(), subscriberView.getRight(), subscriberView.getBottom())
+            }
           }
   }
 
@@ -111,13 +137,37 @@ class ReactWebView: FrameLayout, SessionListener, PublisherListener {
 
   override fun onStreamCreated(publisherKit: PublisherKit, stream: Stream) {
       session.sendSignal("onStreamCreated", "Publisher Stream Created. Own stream ${stream.streamId}")
+            requestLayout()
   }
 
   override fun onStreamDestroyed(publisherKit: PublisherKit, stream: Stream) {
       session.sendSignal("onStreamDestroyed", "Publisher Stream Destroyed. Own stream ${stream.streamId}")
   }
 
+  override fun onConnected(subscriber: SubscriberKit) {
+      session.sendSignal("onConnected", "Subscriber stream ${subscriber.getStream().getStreamId()}")
+  }
+
+  override fun onDisconnected(subscriber: SubscriberKit) {
+      session.sendSignal("onDisconnected", "Subscriber stream ${subscriber.getStream().getStreamId()}")
+  }
+
+  override fun onError(subscriber: SubscriberKit, opentokError: OpentokError) {
+      session.sendSignal("onError", "Subscriber stream ${subscriber.getStream().getStreamId()} Error ${opentokError.message}")
+  }
+
   override fun onError(publisherKit: PublisherKit, opentokError: OpentokError) {
       session.sendSignal("PublisherKit onError", "${opentokError.message}")
   }
+
+  inner class OnStreamCreatedEvent(
+      surfaceId: Int,
+      viewId: Int,
+      private val payload: WritableMap
+  ) : Event<OnStreamCreatedEvent>(surfaceId, viewId) {
+    override fun getEventName() = "onStreamCreated"
+
+    override fun getEventData() = payload
+  }
+
 }
