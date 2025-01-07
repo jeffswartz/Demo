@@ -51,13 +51,14 @@ class ReactWebView: FrameLayout, SessionListener, PublisherListener, SubscriberL
     // this.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
   }
 
-  fun emitOnStreamCreated(streamId: String) {
+  fun emitOnStreamCreated(streamId: String, hasAudio: Boolean) {
     val reactContext = context as ReactContext
     val surfaceId = UIManagerHelper.getSurfaceId(reactContext)
     val eventDispatcher = UIManagerHelper.getEventDispatcherForReactTag(reactContext, id)
     val payload =
         Arguments.createMap().apply {
           putString("streamId", streamId)
+          putBoolean("hasAudio", hasAudio)
         }
     val event = OnStreamCreatedEvent(surfaceId, id, payload)
 
@@ -100,8 +101,8 @@ class ReactWebView: FrameLayout, SessionListener, PublisherListener, SubscriberL
   }
 
   override fun onStreamReceived(session: Session, stream: Stream) {
-          session.sendSignal("onStreamReceived", "New Stream Received ${stream.streamId} in session: ${session.sessionId}")
-          emitOnStreamCreated(stream.streamId)
+          session.sendSignal("onStreamReceived", "New Stream Received ${stream.streamId} in session: ${session.sessionId} hasAudio ${stream.hasAudio()}")
+          emitOnStreamCreated(stream.streamId, stream.hasAudio())
           subscriber = Subscriber.Builder(context, stream).build()
           subscriber?.setStyle(
               BaseVideoRenderer.STYLE_VIDEO_SCALE,
