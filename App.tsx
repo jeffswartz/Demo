@@ -8,8 +8,8 @@ function App(): React.JSX.Element {
       <WebView
         sourceURL="https://www.lipsum.com/"
         style={styles.webview}
-        onScriptLoaded={() => {
-          Alert.alert('Page Loaded');
+        onScriptLoaded={(event) => {
+          Alert.alert('Page Loaded ' + event.nativeEvent.result);
         }}
       />
     </View>
